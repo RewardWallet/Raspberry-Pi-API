@@ -1,19 +1,5 @@
 
 from flask import Flask, session, redirect, url_for, escape, request
-import json, requests
-
-PARSE_HOSTNAME = 'http://localhost:1337/parse'
-PARSE_APP_ID = 'myAppId'
-PARSE_REST_API_KEY = 'myMasterKey'
-
-
-endpoint = '/functions/userData/'
-headers = {"X-Parse-Application-Id": PARSE_APP_ID,"X-Parse-REST-API-Key": "PARSE_REST_API_KEY","Content-Type": "application/json"}
-payload = {'userID': '1234'}
-
-r = requests.post(PARSE_HOSTNAME + endpoint, data=json.dumps(payload), headers=headers)
-
-print(r.json)
 
 app = Flask(__name__)
 

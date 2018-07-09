@@ -4,9 +4,9 @@ import subprocess
 import json, requests, urllib # Parse Server
 from threading import Timer
 
-API_ROOT = 'http://localhost:1337/parse' # 'https://nathantannar.me/api/prod'
-APP_ID = 'myAppId' # '5ejBLY/kzVaVibHAIIQZvbawrEywUCNqpDFVpHgU'
-APP_KEY = 'myMasterKey' # 'oR3Jp5YMyxSBu6r6nh9xuYQD5AcsdubQmvATY1OEtXo'
+API_ROOT = 'https://nathantannar.me/api/prod'
+APP_ID = '5ejBLY/kzVaVibHAIIQZvbawrEywUCNqpDFVpHgU'
+APP_KEY = 'oR3Jp5YMyxSBu6r6nh9xuYQD5AcsdubQmvATY1OEtXo'
 API_HEADERS = {
     "X-Parse-Application-ID": APP_ID,
     "X-Parse-Master-Key": APP_KEY,
@@ -38,12 +38,20 @@ def popBusinessId():
 
 def recoverSession():
     # Recover Session
-    f = open("businessId.txt", "r")
-    session['businessId'] = f.read()
-    print(session['businessId'] )
-    f.close()    
+    with open("businessId.txt", "r") as f:
+        f.seek(0) #ensure you're at the start of the file..
+        first_char = f.read(1) #get the first character
+        if not first_char:
+            # File empty
+            session.pop('businessId', None)
+            return
+        else:
+            f.seek(0) #first character wasn't empty, return to start of file
+            session['businessId'] = f.read()
+        f.close() 
 
 app = Flask(__name__)
+app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
 
 @app.before_first_request
 def startup():

@@ -1,70 +1,151 @@
 
 from flask import Flask, session, redirect, url_for, escape, request # Flask
+import subprocess
 import json, requests, urllib # Parse Server
+from threading import Timer
 
-app = Flask(__name__)
-
-API_ROOT = 'https://nathantannar.me/api/dev'
-APP_ID = '5++ejBLY/kzVaVibHAIIQZvbawrEywUCNqpD+FVpHgU='
-APP_KEY = 'oR3Jp5YMyxSBu6r6nh9xuYQD5AcsdubQmvATY1OEtXo='
+API_ROOT = 'http://localhost:1337/parse' # 'https://nathantannar.me/api/prod'
+APP_ID = 'myAppId' # '5ejBLY/kzVaVibHAIIQZvbawrEywUCNqpDFVpHgU'
+APP_KEY = 'myMasterKey' # 'oR3Jp5YMyxSBu6r6nh9xuYQD5AcsdubQmvATY1OEtXo'
 API_HEADERS = {
     "X-Parse-Application-ID": APP_ID,
     "X-Parse-Master-Key": APP_KEY,
     "Content-Type": "application/json"
 }
 
+def startNFC():
+    return
+
+def clearNFC():
+    subprocess.call(['./SharedMemory', 'XXXXXXXXXX'])
+
+def writeToNFC(transactionID):
+    subprocess.call(['./SharedMemory', transactionID])
+    timeout = Timer(30.0, clearNFC)
+    timeout.start()
+
+def setBusinessId(id):
+    session['businessId'] = id
+    f = open("businessId.txt", "w")
+    f.write(id)
+    f.close()
+
+def popBusinessId():
+    session.pop('businessId', None)
+    f = open("businessId.txt", "w")
+    f.write('')
+    f.close()
+
+def recoverSession():
+    # Recover Session
+    f = open("businessId.txt", "r")
+    session['businessId'] = f.read()
+    print(session['businessId'] )
+    f.close()    
+
+app = Flask(__name__)
+
+@app.before_first_request
+def startup():
+    recoverSession()
+    startNFC()
+
 @app.route('/')
 def index():
-    if 'username' in session:
-        return 'Logged in as %s' % escape(session['username'])
-    return 'You are not logged in'
+    if 'businessId' in session:
+        return 'Logged in as business %s' % escape(session['businessId'])
+    else:
+        return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        session['username'] = username
         params = urllib.parse.urlencode({"username": username, "password": password})
         url = API_ROOT + ('/login?%s' % params)
-        headers = {
-            "X-Parse-Application-Id": APP_ID,
-            "X-Parse-Master-Key": APP_KEY,
-            "X-Parse-Revocable-Session": "1"
-        }
-        response = requests.get(url, headers=headers, verify=False)
+        response = requests.get(url, headers=API_HEADERS, verify=False)
         json_data = json.loads(response.text)
-        print(json_data)
-        return redirect(url_for('index'))
-    return '''
-        <form method="post">
-            <p><input type=email name=username placeholder=Email>
-            <p><input type=password name=password placeholder=Password>
-            <p><input type=submit value=Login>
-        </form>
-    '''
-
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if request.method == 'POST':
-        session['username'] = request.form['username']
-        return redirect(url_for('index'))
-    return '''
-        <form method="post">
-            <p><input type=email name=username placeholder=Email>
-            <p><input type=password name=password placeholder=Password>
-            <p><input type=submit value=Signup>
-        </form>
-    '''
+        if 'business' in json_data:
+            id = json_data['business']['objectId']
+            setBusinessId(id)
+            return redirect(url_for('index'))
+        if 'error' in json_data:
+            return json_data['error']
+        return 'No business connected to your account'
+        
+    elif request.method == 'GET':
+        return '''
+            <form method="post">
+                <p><input type=email name=username placeholder=Email>
+                <p><input type=password name=password placeholder=Password>
+                <p><input type=submit value=Login>
+            </form>
+        '''
 
 @app.route('/logout')
 def logout():
     # remove the username from the session if it's there
-    session.pop('username', None)
-    return redirect(url_for('index'))
+    if 'businessId' in session:
+        popBusinessId()
+        return 'Logged Out'
+    else:
+        return redirect(url_for('index'))
 
-# Config
-# http://flask.pocoo.org/docs/0.11/config/
-app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
-app.config['DEBUG'] = True
-app.config['TEMPLATES_AUTO_RELOAD'] = True
+@app.route('/openTransaction', methods=['POST'])
+def openTransaction():
+    if not ('businessId' in session):
+        return {'error':'No business logged in'}
+
+    json_data = request.get_json(silent=True)
+    data = {}
+    if 'items' in json_data:
+        # inventory based
+        data['items'] = json_data['items']
+    elif ('amount' in json_data) and ('itemCount' in json_data):
+        # purchase based
+        data['amount'] = json_data['amount']
+        data['itemCount'] = json_data['itemCount']
+    else:
+        return {'error':'Undefined parameters'}
+
+    data['businessId'] = session['businessId']
+    endpoint = 'functions/openTransaction'
+    response = requests.post(API_ROOT + endpoint,data=json.dumps(data), headers=API_HEADERS, verify=False)
+
+    json_data = json.loads(response.text)
+    if ('result' in json_data) and ('objectId' in json_data['result']):
+        transactionId = json_data['result']['objectId']
+        writeToNFC(transactionId)
+        return {'result':'Success', 'transactionId':transactionId}
+    else:
+        return json_data
+
+
+@app.route('/openRedeemTransaction', methods=['POST'])
+def openRedeemTransaction():
+    if not ('businessId' in session):
+        return {'error':'No business logged in'}
+
+    json_data = request.get_json(silent=True)
+    data = {}
+    if 'points' in json_data:
+        # inventory based
+        data['points'] = json_data['points']
+    else:
+        return {'error':'Undefined parameters'}
+
+    data['businessId'] = session['businessId']
+    endpoint = 'functions/openRedeemTransaction'
+    response = requests.post(API_ROOT + endpoint,data=json.dumps(data), headers=API_HEADERS, verify=False)
+
+    json_data = json.loads(response.text)
+    if ('result' in json_data) and ('objectId' in json_data['result']):
+        transactionId = json_data['result']['objectId']
+        writeToNFC(transactionId)
+        return {'result':'Success', 'transactionId':transactionId}
+    else:
+        return json_data
+
+if __name__ == "__main__":
+    app.run()

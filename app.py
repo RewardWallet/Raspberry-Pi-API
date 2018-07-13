@@ -17,10 +17,10 @@ def startNFC():
     return
 
 def clearNFC():
-    subprocess.call(['./SharedMemory', 'XXXXXXXXXX'])
+    subprocess.call(['./SharedMemory/build/SharedMemory', 'XXXXXXXXXX'])
 
 def writeToNFC(transactionID):
-    subprocess.call(['./SharedMemory', transactionID])
+    subprocess.call(['./SharedMemory/build/SharedMemory', transactionID])
     timeout = Timer(30.0, clearNFC)
     timeout.start()
 

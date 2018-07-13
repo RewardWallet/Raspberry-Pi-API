@@ -4,8 +4,8 @@ import subprocess
 import json, requests, urllib # Parse Server
 from threading import Timer
 
-API_ROOT = 'https://nathantannar.me/api/prod'
-APP_ID = '5ejBLY/kzVaVibHAIIQZvbawrEywUCNqpDFVpHgU'
+API_ROOT = 'http://nathantannar.me/api/prod'
+APP_ID = '5ejBLYkzVaVibHAIIQZvbawrEywUCNqpDFVpHgU'
 APP_KEY = 'oR3Jp5YMyxSBu6r6nh9xuYQD5AcsdubQmvATY1OEtXo'
 API_HEADERS = {
     "X-Parse-Application-ID": APP_ID,
@@ -72,7 +72,12 @@ def login():
         password = request.form['password']
         params = urllib.parse.urlencode({"username": username, "password": password})
         url = API_ROOT + ('/login?%s' % params)
-        response = requests.get(url, headers=API_HEADERS, verify=False)
+        headers = {
+            "X-Parse-Application-Id": APP_ID,
+            "X-Parse-Master-Key": APP_KEY,
+            "X-Parse-Revocable-Session": "1"
+        }
+        response = requests.get(url, headers=headers, verify=False)
         json_data = json.loads(response.text)
         if 'business' in json_data:
             id = json_data['business']['objectId']

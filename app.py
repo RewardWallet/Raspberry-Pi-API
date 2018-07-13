@@ -1,7 +1,7 @@
 
 from flask import Flask, session, redirect, url_for, escape, request # Flask
 import subprocess
-import json, requests, urllib # Parse Server
+import json, requests, urllib, urllib3 # Parse Server
 from threading import Timer
 
 API_ROOT = 'http://nathantannar.me/api/prod'
@@ -55,6 +55,7 @@ app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
 
 @app.before_first_request
 def startup():
+    urllib3.disable_warnings()
     recoverSession()
     startNFC()
 
@@ -70,15 +71,11 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        params = urllib.parse.urlencode({"username": username, "password": password})
+        params = urllib.parse.urlencode({'username': username, 'password': password})
         url = API_ROOT + ('/login?%s' % params)
-        headers = {
-            "X-Parse-Application-Id": APP_ID,
-            "X-Parse-Master-Key": APP_KEY,
-            "X-Parse-Revocable-Session": "1"
-        }
-        response = requests.get(url, headers=headers, verify=False)
+        response = requests.get(url, headers=API_HEADERS, verify=False)
         json_data = json.loads(response.text)
+        print(json_data)
         if 'business' in json_data:
             id = json_data['business']['objectId']
             setBusinessId(id)
@@ -123,8 +120,7 @@ def openTransaction():
         return {'error':'Undefined parameters'}
 
     data['businessId'] = session['businessId']
-    endpoint = 'functions/openTransaction'
-    response = requests.post(API_ROOT + endpoint,data=json.dumps(data), headers=API_HEADERS, verify=False)
+    response = requests.post(API_ROOT + 'functions/openTransaction', data=json.dumps(data), headers=API_HEADERS, verify=False)
 
     json_data = json.loads(response.text)
     if ('result' in json_data) and ('objectId' in json_data['result']):
@@ -149,8 +145,7 @@ def openRedeemTransaction():
         return {'error':'Undefined parameters'}
 
     data['businessId'] = session['businessId']
-    endpoint = 'functions/openRedeemTransaction'
-    response = requests.post(API_ROOT + endpoint,data=json.dumps(data), headers=API_HEADERS, verify=False)
+    response = requests.post(API_ROOT + 'functions/openRedeemTransaction', data=json.dumps(data), headers=API_HEADERS, verify=False)
 
     json_data = json.loads(response.text)
     if ('result' in json_data) and ('objectId' in json_data['result']):

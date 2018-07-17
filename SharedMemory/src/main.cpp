@@ -3,7 +3,7 @@
 #include "SharedMemory.h"
 #include <thread>         // std::this_thread::sleep_for
 #include <chrono>         // std::chrono::seconds
-#include <cstring>
+
 int main(int argc, char *argv[])
 {
     attachSharedMemory();
@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
         // Arguments passed to write to shared memory
     
         // //----- WRITE TO SHARED MEMORY -----
-        memcpy(&shared_memory1->some_data, argv[1], sizeof(char)*10);
+        memccpy(&shared_memory1->some_data[0], argv[1], sizeof(argv[1]), sizeof(argv[1]));
         shared_memory1->some_flag = 1;
 
         std::cout << argv[1] << " written to shared memory." << std::endl;
@@ -26,11 +26,11 @@ int main(int argc, char *argv[])
             if (shared_memory1->some_flag == 1) 
             {
                 char data[sizeof(&shared_memory1->some_data)];
-                memcpy(&data, &shared_memory1->some_data, sizeof(char)*10);
+                memccpy(&data, &shared_memory1->some_data, 10, sizeof(&shared_memory1->some_data));
 
                 // Clear the data
                 shared_memory1->some_flag = 0;
-                memset(&shared_memory1->some_data, 0, sizeof(shared_memory1->some_data));
+                memset(&shared_memory1->some_data[0], 0, sizeof(shared_memory1->some_data));
                 
                 // Print output
                 std::cout << data << std::endl;

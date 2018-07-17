@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstring>
 #include <sys/shm.h>		//Used for shared memory
 #include "SharedMemory.h"
 #include <thread>         // std::this_thread::sleep_for
@@ -13,7 +14,7 @@ int main(int argc, char *argv[])
         // Arguments passed to write to shared memory
     
         // //----- WRITE TO SHARED MEMORY -----
-        memccpy(&shared_memory1->some_data[0], argv[1], sizeof(argv[1]), sizeof(argv[1]));
+        memcpy(&shared_memory1->some_data[0], argv[1], sizeof(char)*10);
         shared_memory1->some_flag = 1;
 
         std::cout << argv[1] << " written to shared memory." << std::endl;
@@ -25,12 +26,12 @@ int main(int argc, char *argv[])
             //----- READ FROM SHARED MEMORY -----
             if (shared_memory1->some_flag == 1) 
             {
-                char data[sizeof(&shared_memory1->some_data)];
-                memccpy(&data, &shared_memory1->some_data, 10, sizeof(&shared_memory1->some_data));
+                char data[sizeof(char)*10];
+                memcpy(&data, &shared_memory1->some_data, sizeof(char)*10);
 
                 // Clear the data
-                shared_memory1->some_flag = 0;
                 memset(&shared_memory1->some_data[0], 0, sizeof(shared_memory1->some_data));
+                shared_memory1->some_flag = 0;
                 
                 // Print output
                 std::cout << data << std::endl;
